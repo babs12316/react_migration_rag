@@ -1,0 +1,5 @@
+# migration_rules.yaml
+rules:
+  - id: "R19-REF-001"
+    pattern: "forwardRef"
+    description: "Legacy forwardRef detected. React 19 allows refs as standard props."
