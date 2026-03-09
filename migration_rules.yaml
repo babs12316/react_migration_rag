@@ -1,5 +1,71 @@
-# migration_rules.yaml
 rules:
+
   - id: "R19-REF-001"
     pattern: "forwardRef"
     description: "Legacy forwardRef detected. React 19 allows refs as standard props."
+    transformation_logic: "Remove forwardRef wrapper. Destructure ref directly from props."
+
+  - id: "R19-REF-002"
+    pattern: "element.ref"
+    description: "Accessing element.ref is deprecated. ref is now a regular prop."
+    transformation_logic: "Replace element.ref with element.props.ref"
+
+  - id: "R19-REF-003"
+    pattern: "MutableRefObject"
+    description: "MutableRefObject is deprecated. Use RefObject instead."
+    transformation_logic: "Replace MutableRefObject<T> with RefObject<T>."
+
+  - id: "R19-REF-004"
+    pattern: "this.refs"
+    description: "String refs have been removed in React 19."
+    transformation_logic: "Replace string refs with useRef hook."
+
+  - id: "R19-DOM-001"
+    pattern: "render"           # ← was "ReactDOM.render"
+    description: "ReactDOM.render has been removed in React 19."
+    transformation_logic: "Replace with createRoot from react-dom/client."
+
+  - id: "R19-DOM-002"
+    pattern: "hydrate"          # ← was "ReactDOM.hydrate"
+    description: "ReactDOM.hydrate has been removed in React 19."
+    transformation_logic: "Replace with hydrateRoot from react-dom/client."
+
+  - id: "R19-DOM-003"
+    pattern: "unmountComponentAtNode"
+    description: "unmountComponentAtNode removed in React 19."
+    transformation_logic: "Replace with root.unmount()."
+
+  - id: "R19-DOM-004"
+    pattern: "findDOMNode"
+    description: "ReactDOM.findDOMNode removed in React 19."
+    transformation_logic: "Replace with useRef hook."
+
+  - id: "R19-TYPES-001"
+    pattern: "propTypes"
+    description: "propTypes removed in React 19. Migrate to TypeScript."
+    transformation_logic: "Remove PropTypes and replace with TypeScript interface."
+
+  - id: "R19-TYPES-002"
+    pattern: "defaultProps"
+    description: "defaultProps for function components removed in React 19."
+    transformation_logic: "Replace with ES6 default parameters."
+
+  - id: "R19-CTX-001"
+    pattern: "contextTypes"
+    description: "Legacy contextTypes API removed in React 19."
+    transformation_logic: "Migrate to React.createContext()."
+
+  - id: "R19-CTX-002"
+    pattern: "getChildContext"
+    description: "Legacy getChildContext API removed in React 19."
+    transformation_logic: "Migrate to React.createContext() and Context.Provider."
+
+  - id: "R19-DEP-001"
+    pattern: "createFactory"
+    description: "React.createFactory removed in React 19."
+    transformation_logic: "Replace with JSX syntax."
+
+  - id: "R19-TS-002"
+    pattern: "useRef"           # ← was "useRef()" — parentheses break matching
+    description: "useRef now requires an argument in React 19."
+    transformation_logic: "Replace useRef() with useRef(undefined) or useRef(null)."

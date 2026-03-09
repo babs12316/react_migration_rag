@@ -23,20 +23,32 @@ def run_audit(file_to_scan):
     for rule in rules_data['rules']:
         pattern = rule['pattern'].encode()
         print(f"pattern is {pattern}")
-        start_index = source_code.find(pattern)
 
-        if start_index != -1:
-            # Check the AST: Is this specific spot a 'comment' or 'string'?
-            node = tree.root_node.descendant_for_byte_range(start_index, start_index + len(pattern))
-            print(f"node is {node}")
+        start = 0
+        found_real_code = False
 
-            # If the node type is an identifier or call_expression, it's REAL code.
+        while True:
+            index = source_code.find(pattern, start)
+            if index == -1:
+                break  # pattern not found anywhere, move to next rule
+
+            node = tree.root_node.descendant_for_byte_range(index, index + len(pattern))
+            print(
+                f"  PATTERN: {pattern} | INDEX: {index} | NODE TYPE: {node.type} | PARENT: {node.parent.type if node.parent else 'None'}")
+
             if node.type not in ["comment", "string", "string_fragment"]:
-                findings.append({
-                    "id": rule['id'],
-                    "message": rule['description'],
-                    "file": file_to_scan
-                })
+                found_real_code = True
+                break  # found real code, stop searching this pattern
+
+            start = index + 1  # this occurrence was a comment/string, skip past it and keep looking
+
+        if found_real_code:
+            findings.append({
+                "id": rule['id'],
+                "message": rule['description'],
+                "file": file_to_scan
+            })
+
     return findings
 
 

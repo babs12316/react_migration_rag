@@ -13,10 +13,46 @@ load_dotenv()
 
 # --- 1. TOOLS ---
 
+@tool("find_tsx_files")
+def find_tsx_files(directory: str) -> List[str]:
+    """Scans a directory recursively and returns all .tsx file paths.
+    Skips node_modules, build, dist and .next folders."""
+    tsx_files = []
+
+    for root, dirs, files in os.walk(directory):
+        dirs[:] = [d for d in dirs if d not in ['node_modules', 'build', 'dist', '.next']]
+
+        for file in files:
+            if file.endswith(".tsx"):
+                tsx_files.append(os.path.join(root, file))
+
+    return tsx_files
+
+
+@tool("read_file")
+def read_file(file_path: str) -> str:
+    """Reads the full source code of a file and returns it as a string."""
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return f"ERROR: File not found: {file_path}"
+
+
 @tool("audit_code_file")
-def audit_code_file(file_path: str) -> List[Dict]:
+def audit_code_file(file_path: str) -> str:
     """Scans a file for React 19 compatibility issues using Tree-sitter AST."""
-    return run_audit(file_path)
+    findings = run_audit(file_path)
+
+    if not findings:
+        return "NO_ISSUES_FOUND: This file is already React 19 compliant."
+
+    # Convert list to string — Groq requires string responses
+    result = ""
+    for f in findings:
+        result += f"Issue ID: {f['id']} | Message: {f['message']} | File: {f['file']}\n"
+
+    return result.strip()
 
 
 @tool("get_migration_rules")
@@ -62,17 +98,22 @@ def write_final_file(file_path: str, new_code: str) -> str:
 
 llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0)
 
-tools = [audit_code_file, get_migration_rules, write_final_file]
+tools = [find_tsx_files, audit_code_file, get_migration_rules, read_file, write_final_file]
 
 SYSTEM_PROMPT = (
-    "You are a React 19 Migration Expert. You follow a strict 3-step loop:\n"
-    "1. AUDIT: Use audit_code_file.\n"
-    "2. LEARN: Use get_migration_rules with the ID found.\n"
-    "3. COMMIT: Use write_final_file to save the new code to disk.\n\n"
-    "CRITICAL: Never just chat the code. You MUST call write_final_file with the full code. "
-    "Maintain the .tsx extension for all React components."
+    "You are a React 19 Migration Expert.\n\n"
+    "WORKFLOW — follow this EXACT order for EVERY file:\n"
+    "1. SCAN: Use find_tsx_files to get ALL files.\n"
+    "2. For EACH file:\n"
+    "   a. AUDIT: Use audit_code_file.\n"
+    "   b. If NO_ISSUES_FOUND → move to next file immediately.\n"
+    "   c. If issues found:\n"
+    "      - READ: Use read_file to get the current source code.\n"
+    "      - RULES: Use get_migration_rules for each issue ID.\n"
+    "      - REWRITE: Fix the code based on the rules.\n"
+    "      - SAVE: Use write_final_file with the corrected code.\n"
+    "3. Process ALL files. Never stop early."
 )
-
 agent = create_agent(llm, tools, system_prompt=SYSTEM_PROMPT)
 
 
@@ -99,7 +140,4 @@ def run_migration_agent(target_file: str):
 
 
 if __name__ == "__main__":
-    if os.path.exists("Button.tsx"):
-        run_migration_agent("Button.tsx")
-    else:
-        print("Missing Button.tsx! Please create the file first.")
+    run_migration_agent("./react18_files")

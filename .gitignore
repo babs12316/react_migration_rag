@@ -3,3 +3,7 @@
 chroma_db/
 parent_docs_data/
 *_migrated.tsx
+.idea
+__pycache__/
+.langchain_cache/
+.pytest_cache/
