@@ -9,3 +9,4 @@ __pycache__/
 .pytest_cache/
 terraform/terraform.tfvars
 terraform/terraform.prod.tfvars
+terraform/.terraform
