@@ -5,6 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "awscli-local>=0.22.2",
+    "boto3>=1.42.64",
     "chromadb>=1.5.2",
     "langchain>=1.2.10",
     "langchain-chroma>=1.1.0",
@@ -13,6 +15,8 @@ dependencies = [
     "langchain-groq>=1.1.2",
     "langchain-ollama>=1.0.1",
     "langgraph>=1.0.10",
+    "mypy>=1.19.1",
+    "python-dotenv>=1.2.2",
     "tree-sitter>=0.25.2",
     "tree-sitter-language-pack>=0.13.0",
 ]
