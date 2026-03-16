@@ -7,3 +7,6 @@ parent_docs_data/
 __pycache__/
 .langchain_cache/
 .pytest_cache/
+terraform/terraform.tfvars
+terraform/terraform.prod.tfvars
+terraform/.terraform

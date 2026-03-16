@@ -3,13 +3,11 @@ import tree_sitter_language_pack as ts_pack
 from tree_sitter import Parser, Query  # Import Query directly
 
 
-def run_audit(file_to_scan):
+def run_audit(source_code: bytes, filename: str = "unknown"):
     with open("migration_rules.yaml", "r") as f:
         rules_data = yaml.safe_load(f)  # converts rules to Python dictionary and copies
         print(f"rules_data is {rules_data}")
-    with open(file_to_scan, "rb") as f:
-        source_code = f.read()  # One big string
-        print(f"source code {source_code}")
+
 
     # Use the parser just to get the tree
     tsx_lang = ts_pack.get_language("tsx")
@@ -46,14 +44,16 @@ def run_audit(file_to_scan):
             findings.append({
                 "id": rule['id'],
                 "message": rule['description'],
-                "file": file_to_scan
+                "file": filename
             })
 
     return findings
 
 
 if __name__ == "__main__":
-    results = run_audit("Button.tsx")
+    with open("Button.tsx", "rb") as f:
+        source_code = f.read()
+    results = run_audit(source_code, "Button.tsx")
     if results:
         print("🔍 AUDIT COMPLETED: ISSUES FOUND")
         for issue in results:

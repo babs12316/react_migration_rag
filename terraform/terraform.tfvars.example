@@ -1,0 +1,22 @@
+# terraform.tfvars.example
+# Copy this file to terraform.tfvars and update values for your local LocalStack environment
+# DO NOT commit terraform.tfvars to version control
+
+# AWS Region (use any valid AWS region)
+region = "us-east-1"
+
+# LocalStack dummy credentials (any value works for local development)
+access_key = "test"
+secret_key = "test"
+
+# LocalStack endpoint (default LocalStack address)
+localstack_endpoint = "http://localhost:4566"
+
+# S3 bucket name for migration uploads
+upload_bucket = "migration-uploads"
+
+# Force destroy bucket on terraform destroy (useful for development)
+force_destroy = true
+
+# Set to true for LocalStack, false for production
+is_local= true
