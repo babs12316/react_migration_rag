@@ -2,6 +2,8 @@
 
 Async pipeline that migrates React codebases to React 19 using AST-based static analysis, RAG-augmented documentation retrieval, and LLM-powered code rewriting.
 
+https://github.com/user-attachments/assets/36fbe3f5-84ac-4fe3-843a-4e805a66bd3d
+
 ---
 
 ## How It Works
