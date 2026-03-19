@@ -18,6 +18,6 @@ provider "aws" {
    s3_use_path_style = var.is_local
 
   endpoints {
-    s3 = var.is_local ?"http://localhost:4566" : ""
+    s3 = var.is_local ? var.localstack_endpoint : ""
   }
 }

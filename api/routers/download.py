@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
-from api.job_store import get_job
-from api.s3_client import download_migrated_file
+from job_store import get_job
+from s3_client import download_migrated_file
 from botocore.exceptions import ClientError
 
 router = APIRouter()

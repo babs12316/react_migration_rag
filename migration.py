@@ -1,15 +1,15 @@
 from langchain_core.messages import HumanMessage
-from api.s3_client import download_file, upload_migrated_file
-from api import job_store
+from s3_client import download_file, upload_migrated_file
+import job_store
 from langchain_chroma import Chroma
-from langchain_ollama import OllamaEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
-from api.auditor import run_audit
+from auditor import run_audit
 import yaml
 
 llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0)
 
-CHROMA_DIR = "./chroma_db"
+CHROMA_DIR = "api/chroma_db"
 COLLECTION = "react19_docs"
 EMBED_MODEL = "nomic-embed-text"
 
@@ -17,7 +17,7 @@ EMBED_MODEL = "nomic-embed-text"
 vectorstore = Chroma(
     collection_name=COLLECTION,
     persist_directory=CHROMA_DIR,
-    embedding_function=OllamaEmbeddings(model=EMBED_MODEL),
+    embedding_function=HuggingFaceEmbeddings(),
 )
 retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
@@ -35,7 +35,7 @@ def get_migration_rules(issue_id: str) -> str:
                 f"Pattern to fix: {rule['pattern']}."
             )
 
-    return "Standard React 19 migration: pass ref as a prop to the function."
+    return "Standard React 19 react18_files: pass ref as a prop to the function."
 """
 
 def get_rag_context(issues: list[dict]) -> str:

@@ -1,0 +1,87 @@
+services:
+
+  # ─────────────────────────────────────────────
+  # LOCAL AWS
+  # ─────────────────────────────────────────────
+  localstack:
+    image: localstack/localstack:latest
+    container_name: migration_localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - DEFAULT_REGION=us-east-1
+      - PERSISTENCE=1
+    volumes:
+      - localstack_data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ─────────────────────────────────────────────
+  # TERRAFORM — provisions S3 buckets once
+  # ─────────────────────────────────────────────
+  terraform:
+    image: hashicorp/terraform:latest
+    container_name: migration_terraform
+    working_dir: /terraform
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    volumes:
+      - ./terraform:/terraform
+    depends_on:
+      localstack:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "terraform init &&
+             terraform apply -auto-approve"
+
+  # ─────────────────────────────────────────────
+  # INGEST — scrapes docs + stores in ChromaDB
+  # runs once then exits
+  # ─────────────────────────────────────────────
+  ingest:
+    build: .
+    container_name: migration_ingest
+    depends_on:
+      terraform:
+        condition: service_completed_successfully
+    volumes:
+      - ./ingest.py:/app/ingest.py
+      - ./migration_rules.yaml:/app/migration_rules.yaml
+      - ./data:/app/data
+      - chroma_data:/app/chroma_db
+    entrypoint: ["python", "ingest.py"]
+
+  # ─────────────────────────────────────────────
+  # FASTAPI BACKEND
+  # ─────────────────────────────────────────────
+  api:
+    build: .
+    container_name: migration_api
+    ports:
+      - "8000:8000"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+    depends_on:
+      ingest:
+        condition: service_completed_successfully
+    volumes:
+      - ./api:/app/api
+      - ./auditor.py:/app/auditor.py
+      - ./migration.py:/app/migration.py
+      - ./job_store.py:/app/job_store.py
+      - ./s3_client.py:/app/s3_client.py
+      - ./migration_rules.yaml:/app/migration_rules.yaml
+      - chroma_data:/app/chroma_db
+
+volumes:
+  localstack_data:
+  chroma_data:
