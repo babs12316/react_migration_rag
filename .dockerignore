@@ -1,0 +1,25 @@
+# version control
+.git
+.gitignore
+
+# secrets
+.env
+
+
+# terraform
+terraform/
+
+# not needed in container
+react18_files/
+api/chroma_db/
+api/data/
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# misc
+*.md
+.DS_Store
