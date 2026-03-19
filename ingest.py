@@ -6,17 +6,15 @@ import os
 import requests
 from bs4 import BeautifulSoup
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
 
 # ─────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────
 REACT_19_URL = "https://react.dev/blog/2024/04/25/react-19-upgrade-guide"
-CHROMA_DIR = "./chroma_db"
+CHROMA_DIR = "api/chroma_db"
 COLLECTION = "react19_docs"
-OLLAMA_URL = "http://localhost:11434"
-EMBED_MODEL = "nomic-embed-text"
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
 
@@ -56,8 +54,8 @@ def ingest():
     print(f"Scraped {len(raw_text)} characters")
 
     # ── 2. Save raw text for reference ──
-    os.makedirs("data", exist_ok=True)
-    with open("data/react_19_docs.txt", "w") as f:
+    os.makedirs("api/data", exist_ok=True)
+    with open("api/data/react_19_docs.txt", "w") as f:
         f.write(raw_text)
     print("Saved to data/react_19_docs.txt")
 
@@ -67,9 +65,7 @@ def ingest():
 
     # ── 4. Embed + store in ChromaDB ──
     print("Embedding with Ollama nomic-embed-text...")
-    embeddings = OllamaEmbeddings(
-        model=EMBED_MODEL
-    )
+    embeddings = HuggingFaceEmbeddings()
 
     Chroma.from_texts(
         texts=chunks,

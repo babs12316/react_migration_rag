@@ -120,7 +120,7 @@ cd frontend && npm run dev
 
 # deploy to localstack s3
 npm run build
-awslocal s3 sync dist/ s3://migration-frontend --delete
+awslocal s3 sync dist/ s3://react18_files-frontend --delete
 open http://localhost:4566/migration-frontend/index.html
 ```
 

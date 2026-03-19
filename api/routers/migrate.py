@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from typing import Annotated
-from api.job_store import get_job, JobStatus
-from api.s3_client import list_files
-from api.migration import run_migration_pipeline
+from job_store import get_job, JobStatus
+from s3_client import list_files
+from migration import run_migration_pipeline
 
 router = APIRouter()
 

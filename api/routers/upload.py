@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from typing import Annotated
-from api.job_store import create_job
-from api.s3_client import upload_file
+from job_store import create_job
+from s3_client import upload_file
 
 router = APIRouter()
 
