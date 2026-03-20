@@ -2,6 +2,8 @@
 
 Async pipeline that migrates React codebases to React 19 using AST-based static analysis, RAG-augmented documentation retrieval, and LLM-powered code rewriting.
 
+https://github.com/user-attachments/assets/36fbe3f5-84ac-4fe3-843a-4e805a66bd3d
+
 ---
 
 ## How It Works
@@ -12,7 +14,7 @@ Upload .tsx files
 AST audit (Tree-sitter) → detect React 19 violations
       │
       ▼
-RAG retrieval (ChromaDB + Ollama) → fetch relevant React 19 docs
+RAG retrieval (ChromaDB + HuggingFace) → fetch relevant React 19 docs
       │
       ▼
 LLM rewrite (Groq) → fix code using rules + docs context
@@ -30,11 +32,10 @@ Migrated files stored in S3 → download via API
 | API | FastAPI (Python 3.12, `uv`) |
 | AST Analysis | Tree-sitter |
 | LLM | Groq (llama3-70b-8192) |
-| Embeddings | Ollama (nomic-embed-text) |
+| Embeddings | HuggingFace (all-mpnet-base-v2) |
 | Vector Store | ChromaDB |
 | Storage | AWS S3 (LocalStack locally) |
 | Infrastructure | Terraform |
-| Frontend | React 19, Vite, Tailwind, Zustand |
 
 ---
 
@@ -42,16 +43,15 @@ Migrated files stored in S3 → download via API
 ```
 ├── api/
 │   ├── main.py              # FastAPI app
-│   ├── migration.py         # Pipeline + RAG retrieval
-│   ├── auditor.py           # Tree-sitter AST scanner
-│   ├── job_store.py         # Async job tracking
-│   ├── s3_client.py         # S3 client
 │   └── routes/              # upload, migrate, status, results, download
-├── frontend/                # React 19 frontend
-├── terraform/               # Infrastructure as code
-├── data/react_19_docs.txt   # Scraped React 19 docs
-├── chroma_db/               # ChromaDB (auto-generated)
+├── auditor.py               # Tree-sitter AST scanner
+├── migration.py             # Pipeline + RAG retrieval
+├── job_store.py             # Async job tracking
+├── s3_client.py             # S3 client
 ├── ingest.py                # One-time ingestion script
+├── terraform/               # Infrastructure as code
+├── data/                    # Scraped React 19 docs (auto-generated)
+├── chroma_db/               # ChromaDB (auto-generated)
 └── migration_rules.yaml     # 14 React 19 migration rules
 ```
 
@@ -61,11 +61,23 @@ Migrated files stored in S3 → download via API
 
 ### Prerequisites (macOS)
 ```bash
-brew install uv localstack ollama pipx hashicorp/tap/terraform
+brew install uv localstack pipx hashicorp/tap/terraform
 pipx install awscli-local
 ```
 
-### Setup
+### Quick Start (Docker)
+```bash
+# copy and configure environment
+cp .env.example .env
+# add your GROQ_API_KEY
+
+# start everything
+docker-compose up --build
+```
+
+API at `http://localhost:8000` — docs at `http://localhost:8000/docs`.
+
+### Manual Setup
 ```bash
 # 1. install dependencies
 uv sync
@@ -80,18 +92,12 @@ localstack start
 # 4. provision s3 buckets
 cd terraform && terraform init && terraform apply
 
-# 5. start ollama + pull embedding model
-ollama serve
-ollama pull nomic-embed-text
-
-# 6. ingest react 19 docs (one time only)
+# 5. ingest react 19 docs (one time only)
 python ingest.py
 
-# 7. start api
+# 6. start api
 uvicorn api.main:app --reload
 ```
-
-API at `http://localhost:8000` — docs at `http://localhost:8000/docs`.
 
 ---
 
@@ -113,15 +119,15 @@ API at `http://localhost:8000` — docs at `http://localhost:8000/docs`.
 
 ---
 
-## Frontend
-```bash
-# dev
-cd frontend && npm run dev
+## RAG Pipeline
 
-# deploy to localstack s3
-npm run build
-awslocal s3 sync dist/ s3://react18_files-frontend --delete
-open http://localhost:4566/migration-frontend/index.html
+React 19 documentation is scraped from [react.dev](https://react.dev/blog/2024/04/25/react-19-upgrade-guide), chunked, embedded with HuggingFace (`all-mpnet-base-v2`), and stored in ChromaDB.
+
+At migration time, relevant documentation chunks are retrieved using semantic search and injected into the LLM prompt alongside the migration rules — giving the LLM richer context for accurate rewrites.
+
+To refresh the documentation:
+```bash
+python ingest.py
 ```
 
 ---
@@ -142,3 +148,9 @@ terraform apply -var-file="terraform.prod.tfvars"
 ```
 
 Set real AWS credentials via environment variables — never in files.
+
+---
+
+## Related
+
+- **Frontend**: [react_migration_rag_frontend](https://github.com/babs12316/react_migration_rag_frontend)
