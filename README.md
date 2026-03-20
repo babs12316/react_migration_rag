@@ -31,7 +31,7 @@ Migrated files stored in S3 → download via API
 |---|---|
 | API | FastAPI (Python 3.12, `uv`) |
 | AST Analysis | Tree-sitter |
-| LLM | Groq (llama3-70b-8192) |
+| LLM | Groq (openai/gpt-oss-120b) |
 | Embeddings | HuggingFace (all-mpnet-base-v2) |
 | Vector Store | ChromaDB |
 | Storage | AWS S3 (LocalStack locally) |
