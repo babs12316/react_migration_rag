@@ -92,7 +92,7 @@ localstack start
 # 4. provision s3 buckets
 cd terraform && terraform init && terraform apply
 
-# 5. ingest react 19 docs (one time only)
+# 5. ingest react 18 to 19 upgrade guid (one time only)
 python ingest.py
 
 # 6. start api
