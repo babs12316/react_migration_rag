@@ -6,6 +6,9 @@ from groq import Groq
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
+import time
+import hashlib
+
 from langchain.agents.middleware import (
     ModelRetryMiddleware,
     ModelFallbackMiddleware,
@@ -146,7 +149,7 @@ rewrite_agent = create_agent(
 
 # ─────────────────────────────────────────────
 # Helpers
-# ─────────────────────────────────────────────
+# ────────────────────────────────────────────
 def get_rag_context(issues: list[dict]) -> str:
     """Retrieve relevant React 19 docs from ChromaDB for each issue."""
     docs = []
@@ -177,6 +180,14 @@ def _load_rules(issue_ids: list[str]) -> str:
     return "\n\n".join(results)
 
 
+# in-memory cache — lives as long as server is running
+_llm_cache: dict[str, str] = {}
+
+
+def _cache_key(original_code: str) -> str:
+    return hashlib.sha256(original_code.encode()).hexdigest()
+
+
 def _rewrite_code(original_code: str, issues: list[dict], rules: str, rag_context: str) -> str:
     """
     Rewrite code using agent with middleware:
@@ -186,6 +197,12 @@ def _rewrite_code(original_code: str, issues: list[dict], rules: str, rag_contex
     - ModelFallbackMiddleware → switch to fallback model if primary fails
     - ModelCallLimitMiddleware → exactly 1 LLM call per rewrite
     """
+    # ── check cache first ──
+    key = _cache_key(original_code)
+    if key in _llm_cache:
+        print(f"Cache hit — skipping LLM call")
+        return _llm_cache[key]
+
     issue_summary = "\n".join(f"- {i['id']}: {i['message']}" for i in issues)
     prompt = (
         f"Original code:\n{original_code}\n\n"
@@ -202,12 +219,52 @@ def _rewrite_code(original_code: str, issues: list[dict], rules: str, rag_contex
     if BLOCKED_SIGNAL in last_message or REFUSED_SIGNAL in last_message or "BLOCKED:" in last_message:
         raise ValueError(last_message)
 
-    return last_message.strip()
+    migrated_code = last_message.strip()
+
+    # ── store in cache ──
+    _llm_cache[key] = migrated_code
+    print(f"Cache miss — stored result, cache size: {len(_llm_cache)}")
+
+    return migrated_code
 
 
 # ─────────────────────────────────────────────
 # Pipeline
 # ─────────────────────────────────────────────
+async def _process_file(job_id: str, filename: str):
+    """Process a single file asynchronously."""
+    try:
+        # ── 1. Download from S3 ──
+        content_bytes = download_file(job_id, filename)
+
+        # ── 2. AST audit ──
+        issues = run_audit(content_bytes, filename)
+
+        if not issues:
+            job_store.record_file_result(job_id, filename, [], False)
+            return
+
+        # ── 3. Fetch rules + RAG context ──
+        issue_ids = [i["id"] for i in issues]
+        rules = _load_rules(issue_ids)
+        rag_context = get_rag_context(issues)
+
+        # ── 4. Rewrite — run in thread pool ──
+        original_code = content_bytes.decode("utf-8")
+        migrated_code = await asyncio.to_thread(
+            _rewrite_code, original_code, issues, rules, rag_context
+        )
+
+        # ── 5. Upload to S3 ──
+        upload_migrated_file(job_id, filename, migrated_code)
+
+        # ── 6. Update job state ──
+        job_store.record_file_result(job_id, filename, issue_ids, True)
+
+    except Exception as e:
+        job_store.record_error(job_id, filename, str(e))
+
+
 async def run_migration_pipeline(job_id: str, filenames: list[str]):
     """
     Runs for each file in the job:
@@ -217,43 +274,15 @@ async def run_migration_pipeline(job_id: str, filenames: list[str]):
     4. If issues found:
        a. Fetch fix rules from YAML
        b. Retrieve relevant React 19 docs from ChromaDB (RAG)
-       c. Rewrite code with LLM using rules + RAG context (with middleware)
+       c. Rewrite code with LLM in thread pool (parallel)
        d. Upload migrated file to S3 results bucket
     5. Update job state after each file
     """
     job_store.set_running(job_id)
-
-    for filename in filenames:
-        try:
-            # ── 1. Download from S3 ──
-            content_bytes = download_file(job_id, filename)
-
-            # ── 2. AST audit ──
-            issues = run_audit(content_bytes, filename)
-
-            if not issues:
-                job_store.record_file_result(job_id, filename, [], False)
-                await asyncio.sleep(0)
-                continue
-
-            # ── 3. Fetch rules + RAG context ──
-            issue_ids = [i["id"] for i in issues]
-            rules = _load_rules(issue_ids)
-            rag_context = get_rag_context(issues)
-
-            # ── 4. Rewrite with agent ──
-            original_code = content_bytes.decode("utf-8")
-            migrated_code = _rewrite_code(original_code, issues, rules, rag_context)
-
-            # ── 5. Upload to S3 ──
-            upload_migrated_file(job_id, filename, migrated_code)
-
-            # ── 6. Update job state ──
-            job_store.record_file_result(job_id, filename, issue_ids, True)
-            await asyncio.sleep(0)
-
-        except Exception as e:
-            job_store.record_error(job_id, filename, str(e))
-            await asyncio.sleep(0)
-
+    start = time.time()
+    print("timer started")
+    await asyncio.gather(*[_process_file(job_id, f) for f in filenames])
+    elapsed = time.time() - start
+    print(f"Migration completed in {elapsed:.2f}s for {len(filenames)} files")
+    print(f"Average: {elapsed / len(filenames):.2f}s per file")
     job_store.set_complete(job_id)
