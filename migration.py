@@ -8,6 +8,7 @@ from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
 import time
 import hashlib
+from langsmith import traceable
 
 from langchain.agents.middleware import (
     ModelRetryMiddleware,
@@ -188,6 +189,7 @@ def _cache_key(original_code: str) -> str:
     return hashlib.sha256(original_code.encode()).hexdigest()
 
 
+@traceable
 def _rewrite_code(original_code: str, issues: list[dict], rules: str, rag_context: str) -> str:
     """
     Rewrite code using agent with middleware:

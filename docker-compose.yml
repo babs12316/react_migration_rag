@@ -70,6 +70,9 @@ services:
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
       - AWS_DEFAULT_REGION=us-east-1
+      - LANGSMITH_TRACING=true
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGSMITH_PROJECT}
     depends_on:
       ingest:
         condition: service_completed_successfully
@@ -85,3 +88,4 @@ services:
 volumes:
   localstack_data:
   chroma_data:
+
